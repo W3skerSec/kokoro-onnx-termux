@@ -20,10 +20,14 @@ def parse_acting_beats(text: str) -> list[dict]:
     """
     Divide o texto em beats expressivos respeitando pontuações e tags especiais.
     """
-    # 1. Tratamento de tags explícitas de pausa [pausa=X]
+    # 1. Tratamento de tags explícitas
     text = re.sub(r'\[(pausa|pause)=([0-9.]+)\]', r' <PAUSE:\2> ', text, flags=re.IGNORECASE)
     text = re.sub(r'\[(sussurro|whisper)\]', r' <WHISPER> ', text, flags=re.IGNORECASE)
     text = re.sub(r'\[(energia|energy|grito)\]', r' <ENERGY> ', text, flags=re.IGNORECASE)
+    text = re.sub(r'\[(rush|adrenalina|rapido)\]', r' <RUSH> ', text, flags=re.IGNORECASE)
+    text = re.sub(r'\[(tedio|ironia|sarcasmo)\]', r' <CHILL> ', text, flags=re.IGNORECASE)
+    text = re.sub(r'\[(analitica|foco|alerta)\]', r' <ANALYTIC> ', text, flags=re.IGNORECASE)
+    text = re.sub(r'\[(direta|calma)\]', r' <DIRECT> ', text, flags=re.IGNORECASE)
 
     # 2. Divide por limites oracionais expressivos (. ! ? … ou ...)
     raw_parts = re.split(r'([.!?…]+|\.\.\.)', text)
@@ -47,6 +51,18 @@ def parse_acting_beats(text: str) -> list[dict]:
         elif "<ENERGY>" in clause:
             current_modifier = "energy"
             clause = clause.replace("<ENERGY>", "").strip()
+        elif "<RUSH>" in clause:
+            current_modifier = "rush"
+            clause = clause.replace("<RUSH>", "").strip()
+        elif "<CHILL>" in clause:
+            current_modifier = "chill"
+            clause = clause.replace("<CHILL>", "").strip()
+        elif "<ANALYTIC>" in clause:
+            current_modifier = "analytic"
+            clause = clause.replace("<ANALYTIC>", "").strip()
+        elif "<DIRECT>" in clause:
+            current_modifier = "direct"
+            clause = clause.replace("<DIRECT>", "").strip()
 
         # Checa pausas customizadas
         custom_pause = None
@@ -70,6 +86,30 @@ def parse_acting_beats(text: str) -> list[dict]:
             speed = 1.10
             vol = 1.25
             pause_s = 0.22
+            current_modifier = "normal"
+        elif current_modifier == "rush":
+            # Movimento forte / Adrenalina: fala rápido, frases curtas e cortadas
+            speed = 1.15
+            vol = 1.20
+            pause_s = 0.16
+            current_modifier = "normal"
+        elif current_modifier == "chill":
+            # Tédio sofisticado / Ironia: cadência aveludada, arrastada e sarcástica
+            speed = 0.88
+            vol = 0.82
+            pause_s = 0.55
+            current_modifier = "normal"
+        elif current_modifier == "analytic":
+            # Armadilha detectada / Analítica: fala devagar, calculada, precisa
+            speed = 0.94
+            vol = 1.05
+            pause_s = 0.35
+            current_modifier = "normal"
+        elif current_modifier == "direct":
+            # Usuário ansioso: pausa longa antes e frase direta sem suavizar
+            speed = 0.98
+            vol = 1.02
+            pause_s = 0.60
             current_modifier = "normal"
         elif '!' in punct:
             # Exclamação: Enérgica, ágil e projetada

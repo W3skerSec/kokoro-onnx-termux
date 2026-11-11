@@ -19,6 +19,12 @@ import kokoro_onnx
 HALF = 128  # 0..128: Timbre/Identidade vocal | 128..256: Prosódia/Ritmo linguístico
 
 VOICE_PRESETS = {
+    "cara_jdm": {
+        "timbre": "bf_isabella:0.35,bf_emma:0.30,bm_fable:0.20,af_heart:0.15",
+        "prosody": "pf_dora:0.75,bf_isabella:0.25",
+        "desc": "DJ Cara (Underground JDM / Neon Noir) - Voz aveludada, confiante, provocativa e rouca",
+        "test": "Luzes de neon, asfalto molhado... relaxa, chefe. Essa próxima faixa de Dark Phonk é simplesmente genial."
+    },
     "dj_cara": {
         "timbre": "bf_emma:0.45,bf_alice:0.35,bf_lily:0.20",
         "prosody": "pf_dora:0.85,bf_emma:0.15",

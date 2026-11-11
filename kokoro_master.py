@@ -13,6 +13,17 @@ import tempfile
 import time
 
 PRESETS = {
+    "midnight": (
+        "aresample=48000,"
+        "highpass=f=65,"
+        "equalizer=f=180:t=o:w=1.2:g=3.0,"
+        "equalizer=f=3200:t=o:w=1.4:g=2.2,"
+        "equalizer=f=11000:t=o:w=1.5:g=2.5,"
+        "aexciter=level_in=1:level_out=1:amount=1.6:drive=1.8:freq=6000:ceil=18000,"
+        "crystalizer=i=1.25,"
+        "compand=attacks=0.02:decays=0.08:points=-80/-80|-45/-36|-25/-16|-12/-8|-4/-2|0/0:soft-knee=6:gain=2.0,"
+        "loudnorm=I=-15:TP=-1.0:LRA=8"
+    ),
     "studio": (
         "aresample=48000,"
         "highpass=f=70,"

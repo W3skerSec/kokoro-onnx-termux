@@ -72,7 +72,7 @@ def main():
     parser.add_argument("--play", action="store_true", default=True, help="Tocar áudio automaticamente no alto-falante")
     parser.add_argument("--no-play", dest="play", action="store_false", help="Não tocar áudio")
     parser.add_argument("-m", "--master", action="store_true", help="Aplicar pós-processamento de estúdio (ElevenLabs Quality)")
-    parser.add_argument("-p", "--preset", default="studio", choices=["studio", "radio", "anime", "clean"], help="Preset de masterização")
+    parser.add_argument("-p", "--preset", default="studio", choices=["studio", "radio", "anime", "clean", "midnight", "jdm"], help="Preset de masterização")
     parser.add_argument("--act", dest="act", action="store_true", default=None, help="Ativar atuação humana expressiva (volume e pausas dinâmicas)")
     parser.add_argument("--no-act", dest="act", action="store_false", help="Desativar atuação expressiva")
     parser.add_argument("--list-voices", action="store_true", help="Listar vozes disponíveis")
@@ -125,8 +125,8 @@ def main():
     # Determina se deve usar atuação expressiva humana
     should_act = args.act
     if should_act is None:
-        # Ativa automaticamente para dj_cara ou se o texto contiver pontuações expressivas
-        if "dj_cara" in str(voice_name) or any(c in text for c in ["!", "?", "..."]):
+        # Ativa automaticamente para dj_cara, cara_jdm ou se o texto contiver pontuações expressivas
+        if any(v in str(voice_name) for v in ["dj_cara", "cara_jdm"]) or any(c in text for c in ["!", "?", "..."]):
             should_act = True
         else:
             should_act = False
@@ -154,7 +154,9 @@ def main():
         import tempfile
         from kokoro_master import master_audio
         preset = args.preset
-        if "dj_cara" in str(voice_name) and preset == "studio":
+        if "cara_jdm" in str(voice_name) and preset == "studio":
+            preset = "midnight"
+        elif "dj_cara" in str(voice_name) and preset == "studio":
             preset = "radio"
         elif "anime" in str(voice_name) and preset == "studio":
             preset = "anime"

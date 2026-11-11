@@ -112,6 +112,14 @@ def main():
     resolved_voice = resolve_voice(args.voice)
     voice_name = args.voice if isinstance(resolved_voice, str) else f"custom({args.voice})"
 
+    # Normalização fonética inteligente e captura de termos desconhecidos
+    if args.lang.lower().startswith("pt"):
+        try:
+            import kokoro_phonetics
+            text = kokoro_phonetics.normalize_text_ptbr(text)
+        except Exception:
+            pass
+
     print(f"🤖 [Kokoro TTS] Sintetizando com a voz '{voice_name}' ({args.lang})...")
     t0 = time.time()
     samples, sr = kokoro.create(text, voice=resolved_voice, speed=args.speed, lang=args.lang)

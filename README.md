@@ -79,6 +79,33 @@ kokoro-blend --timbre "jf_tebukuro:0.5,af_heart:0.5" --prosody "pf_dora" --name 
 
 ---
 
+## 📖 Dicionário Fonético Inteligente & Auto-Aprendizado (`kokoro-dict`)
+
+O Kokoro conta com um dicionário fonético integrado que traduz termos em inglês, gírias da cultura pop, games e tecnologia para a pronúncia correta no Brasil (ex: *Non Stop Pop FM* vira *nón stóp póp éfie-emi*, *Dj* vira *didjei*, *GTA V* vira *gêtêá cinco*, *Download* vira *daunlôudi*).
+
+Além disso, o motor possui **detecção automática de palavras estrangeiras/desconhecidas**: sempre que você falar uma palavra fora do vocabulário, ela é automaticamente capturada para revisão!
+
+### Comandos do Dicionário:
+```bash
+# 1. Listar todas as palavras e pronúncias cadastradas
+kokoro-dict --list
+
+# 2. Ver palavras que você falou e que o sistema detectou como pendentes de ajuste
+kokoro-dict --pending
+
+# 3. Adicionar ou corrigir manualmente uma palavra no seu dicionário
+kokoro-dict --add "Palavra" "fonética"
+# Exemplo: kokoro-dict --add "Cyberpunk" "saiberpânqui"
+
+# 4. Gerar relatório formatado para enviar à IA/assistente com as palavras pendentes
+kokoro-dict --instructions
+
+# 5. Testar como uma frase será pronunciada
+kokoro-dict --test "Aqui é a Dj Cara na Non Stop Pop FM!"
+```
+
+---
+
 ## 🗣️ Guia de Comandos do Terminal
 
 ### Síntese Simples:

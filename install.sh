@@ -23,12 +23,12 @@ python3 "$SCRIPT_DIR/patches/apply_patches.py"
 
 # 4. Baixar Modelos Kokoro-82M e Vozes
 MODEL_DIR="$HOME/.kokoro"
-mkdir -p "$MODEL_DIR"
+mkdir -p "$MODEL_DIR/custom_voices"
 
-if [ ! -f "$MODEL_DIR/kokoro-v1.0.int8.onnx" ]; then
-    echo "[4/5] Baixando modelo neural quantizado Kokoro-v1.0 (INT8 108MB - Ultra Rápido)..."
-    curl -L -o "$MODEL_DIR/kokoro-v1.0.int8.onnx" \
-        https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx
+if [ ! -f "$MODEL_DIR/kokoro-v1.0.onnx" ]; then
+    echo "[4/5] Baixando modelo neural de estúdio Kokoro-v1.0 (FP32 310MB - Áudio Cristalino)..."
+    curl -L -o "$MODEL_DIR/kokoro-v1.0.onnx" \
+        https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.onnx
 fi
 
 if [ ! -f "$MODEL_DIR/voices-v1.0.bin" ]; then
@@ -37,10 +37,11 @@ if [ ! -f "$MODEL_DIR/voices-v1.0.bin" ]; then
         https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin
 fi
 
-# 5. Criar atalho global 'kokoro-speak'
-echo "[5/5] Instalando comando global 'kokoro-speak'..."
+# 5. Criar atalhos globais
+echo "[5/5] Instalando comandos globais 'kokoro-speak' e 'kokoro-blend'..."
 cp "$SCRIPT_DIR/kokoro_speak.py" "$PREFIX/bin/kokoro-speak"
-chmod +x "$PREFIX/bin/kokoro-speak"
+cp "$SCRIPT_DIR/kokoro_blend.py" "$PREFIX/bin/kokoro-blend"
+chmod +x "$PREFIX/bin/kokoro-speak" "$PREFIX/bin/kokoro-blend"
 
 echo "============================================================"
 echo "🎉 INSTALAÇÃO CONCLUÍDA COM SUCESSO!"
@@ -48,6 +49,6 @@ echo "============================================================"
 echo "Para testar, execute:"
 echo '  kokoro-speak "Olá, eu sou a Dora, sua assistente virtual brasileira!"'
 echo ""
-echo "Para listar todas as vozes:"
-echo '  kokoro-speak --list-voices'
+echo "Para criar sua própria voz customizada (desacoplada):"
+echo '  kokoro-blend --timbre "jf_tebukuro:0.6,af_heart:0.4" --prosody "pf_dora" --name "minha_voz"'
 echo "============================================================"

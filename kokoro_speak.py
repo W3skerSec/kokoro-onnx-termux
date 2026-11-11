@@ -3,6 +3,7 @@ import os
 import sys
 import warnings
 import logging
+import numpy as np
 
 # 1. Silenciar UserWarning do onnxruntime no Android
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -27,9 +28,9 @@ MODEL_DIR = os.path.expanduser("~/.kokoro")
 DEFAULT_FP32 = os.path.join(MODEL_DIR, "kokoro-v1.0.onnx")
 DEFAULT_INT8 = os.path.join(MODEL_DIR, "kokoro-v1.0.int8.onnx")
 DEFAULT_VOICES = os.path.join(MODEL_DIR, "voices-v1.0.bin")
+CUSTOM_DIR = os.path.join(MODEL_DIR, "custom_voices")
 
 def get_best_model():
-    # Prefer FP32 for pure, crystal-clear studio audio without INT8 quantization noise
     alt_fp32 = "/data/data/com.termux/files/home/modelos_tts/kokoro/model.onnx"
     if os.path.exists(alt_fp32):
         return alt_fp32
@@ -50,10 +51,21 @@ def get_best_voices():
         return DEFAULT_VOICES
     return alt_voices
 
+def resolve_voice(voice_arg):
+    # 1. Direct .npy file path
+    if voice_arg.endswith(".npy") and os.path.exists(voice_arg):
+        return np.load(voice_arg)
+    # 2. Check custom_voices directory
+    custom_path = os.path.join(CUSTOM_DIR, f"{voice_arg}.npy")
+    if os.path.exists(custom_path):
+        return np.load(custom_path)
+    # 3. Otherwise return string name for standard voices.bin lookup
+    return voice_arg
+
 def main():
     parser = argparse.ArgumentParser(description="Kokoro-82M TTS Local para Termux (Android)")
     parser.add_argument("text", nargs="?", default="", help="Texto a ser sintetizado")
-    parser.add_argument("-v", "--voice", default="pf_dora", help="Voz (padrão: pf_dora [feminina brasileira])")
+    parser.add_argument("-v", "--voice", default="pf_dora", help="Voz padrão ou customizada (.npy ou nome)")
     parser.add_argument("-s", "--speed", type=float, default=1.0, help="Velocidade da fala (padrão: 1.0)")
     parser.add_argument("-l", "--lang", default="pt-br", help="Idioma (padrão: pt-br)")
     parser.add_argument("-o", "--output", default="/sdcard/Download/fala_kokoro.wav", help="Arquivo de saída WAV")
@@ -76,7 +88,14 @@ def main():
         print("="*50)
         pt_voices = [v for v in voices if v.startswith("p")]
         print(f"🇧🇷 Português do Brasil: {pt_voices}")
-        print(f"Total de vozes suportadas: {len(voices)}")
+        
+        # Check custom voices
+        if os.path.exists(CUSTOM_DIR):
+            custom_list = [f.replace(".npy", "") for f in os.listdir(CUSTOM_DIR) if f.endswith(".npy")]
+            if custom_list:
+                print(f"🎨 Vozes Personalizadas Customizadas: {custom_list}")
+                
+        print(f"Total de vozes padrão suportadas: {len(voices)}")
         return
 
     text = args.text.strip()
@@ -88,9 +107,12 @@ def main():
             print('  kokoro-speak "Olá, tudo bem?" -v pf_dora')
             return
 
-    print(f"🤖 [Kokoro TTS] Sintetizando com a voz '{args.voice}' ({args.lang})...")
+    resolved_voice = resolve_voice(args.voice)
+    voice_name = args.voice if isinstance(resolved_voice, str) else f"custom({args.voice})"
+
+    print(f"🤖 [Kokoro TTS] Sintetizando com a voz '{voice_name}' ({args.lang})...")
     t0 = time.time()
-    samples, sr = kokoro.create(text, voice=args.voice, speed=args.speed, lang=args.lang)
+    samples, sr = kokoro.create(text, voice=resolved_voice, speed=args.speed, lang=args.lang)
     dt = time.time() - t0
     dur = len(samples) / sr
     speedup = dur / dt if dt > 0 else 0

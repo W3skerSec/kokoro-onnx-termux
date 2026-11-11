@@ -1,11 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/python3
 """
-Kokoro Actor Engine - Motor de Prosódia Expressiva e Atuação Humana
-Permite dinâmicas naturais de fala:
-- Variação de volume (crescendo / decrescendo / intimista)
-- Modulação de velocidade e entonação por pontuação (!, ?, ...)
-- Pausas respiratórias e dramáticas humanas (substituindo a cadência mecânica plana)
-- Suporte a tags expressivas: [pausa=X], [sussurro], [energia]
+Kokoro Actor Engine v2 - Atuação Humana e Prosódia Expressiva
+- Parsing robusto de tags sem colisão de regex ([pausa=X], [rush], [tedio], etc)
+- Cadência aveludada, magnética e sem pressa (0.80x a 0.95x)
+- Pausas respiratórias e dramáticas generosas (0.25s a 0.80s)
+- Crossfade suave de 20ms entre orações para evitar saltos ou cortes mecânicos
 """
 
 import os
@@ -18,141 +17,144 @@ SAMPLE_RATE = 24000
 
 def parse_acting_beats(text: str) -> list[dict]:
     """
-    Divide o texto em beats expressivos respeitando pontuações e tags especiais.
+    Tokeniza o texto em beats de fala e pausas sem quebrar floats ou pontuações.
     """
-    # 1. Tratamento de tags explícitas
-    text = re.sub(r'\[(pausa|pause)=([0-9.]+)\]', r' <PAUSE:\2> ', text, flags=re.IGNORECASE)
-    text = re.sub(r'\[(sussurro|whisper)\]', r' <WHISPER> ', text, flags=re.IGNORECASE)
-    text = re.sub(r'\[(energia|energy|grito)\]', r' <ENERGY> ', text, flags=re.IGNORECASE)
-    text = re.sub(r'\[(rush|adrenalina|rapido)\]', r' <RUSH> ', text, flags=re.IGNORECASE)
-    text = re.sub(r'\[(tedio|ironia|sarcasmo)\]', r' <CHILL> ', text, flags=re.IGNORECASE)
-    text = re.sub(r'\[(analitica|foco|alerta)\]', r' <ANALYTIC> ', text, flags=re.IGNORECASE)
-    text = re.sub(r'\[(direta|calma)\]', r' <DIRECT> ', text, flags=re.IGNORECASE)
+    # 1. Extração segura de tags especiais [tag] ou [tag=valor]
+    token_pattern = re.compile(
+        r'\[(pausa|pause)=([0-9.]+)\]|'
+        r'\[(rush|adrenalina|rapido)\]|'
+        r'\[(tedio|ironia|sarcasmo)\]|'
+        r'\[(analitica|foco|alerta)\]|'
+        r'\[(direta|calma)\]|'
+        r'\[(sussurro|whisper)\]|'
+        r'\[(energia|energy)\]',
+        re.IGNORECASE
+    )
 
-    # 2. Divide por limites oracionais expressivos (. ! ? … ou ...)
-    raw_parts = re.split(r'([.!?…]+|\.\.\.)', text)
-    clauses = []
-    for i in range(0, len(raw_parts) - 1, 2):
-        c = raw_parts[i].strip()
-        p = raw_parts[i+1].strip()
-        if c:
-            clauses.append((c, p))
-    if len(raw_parts) % 2 == 1 and raw_parts[-1].strip():
-        clauses.append((raw_parts[-1].strip(), '.'))
+    # Divide o texto preservando as tags
+    tokens = []
+    last_idx = 0
+    for match in token_pattern.finditer(text):
+        start, end = match.span()
+        if start > last_idx:
+            chunk = text[last_idx:start].strip()
+            if chunk:
+                tokens.append(("text", chunk))
+        matched_str = match.group(0).lower()
+        if "pausa=" in matched_str or "pause=" in matched_str:
+            dur = float(match.group(2))
+            tokens.append(("pause", dur))
+        elif any(k in matched_str for k in ["rush", "adrenalina", "rapido"]):
+            tokens.append(("mod", "rush"))
+        elif any(k in matched_str for k in ["tedio", "ironia", "sarcasmo"]):
+            tokens.append(("mod", "tedio"))
+        elif any(k in matched_str for k in ["analitica", "foco", "alerta"]):
+            tokens.append(("mod", "analitica"))
+        elif any(k in matched_str for k in ["direta", "calma"]):
+            tokens.append(("mod", "direta"))
+        elif any(k in matched_str for k in ["sussurro", "whisper"]):
+            tokens.append(("mod", "sussurro"))
+        elif any(k in matched_str for k in ["energia", "energy"]):
+            tokens.append(("mod", "energia"))
+        last_idx = end
 
+    if last_idx < len(text):
+        chunk = text[last_idx:].strip()
+        if chunk:
+            tokens.append(("text", chunk))
+
+    # 2. Converte tokens em beats oracionais
     beats = []
-    current_modifier = "normal"
+    current_mod = "normal"
 
-    for clause, punct in clauses:
-        # Detecta tags embutidas
-        if "<WHISPER>" in clause:
-            current_modifier = "whisper"
-            clause = clause.replace("<WHISPER>", "").strip()
-        elif "<ENERGY>" in clause:
-            current_modifier = "energy"
-            clause = clause.replace("<ENERGY>", "").strip()
-        elif "<RUSH>" in clause:
-            current_modifier = "rush"
-            clause = clause.replace("<RUSH>", "").strip()
-        elif "<CHILL>" in clause:
-            current_modifier = "chill"
-            clause = clause.replace("<CHILL>", "").strip()
-        elif "<ANALYTIC>" in clause:
-            current_modifier = "analytic"
-            clause = clause.replace("<ANALYTIC>", "").strip()
-        elif "<DIRECT>" in clause:
-            current_modifier = "direct"
-            clause = clause.replace("<DIRECT>", "").strip()
+    for t_type, t_val in tokens:
+        if t_type == "pause":
+            beats.append({"type": "pause", "duration": t_val})
+        elif t_type == "mod":
+            current_mod = t_val
+        elif t_type == "text":
+            # Divide orações por pontuação final (. ! ? … ou ...)
+            clauses = re.split(r'([.!?…]+|\.\.\.)', t_val)
+            for i in range(0, len(clauses) - 1, 2):
+                c = clauses[i].strip()
+                p = clauses[i+1].strip()
+                if not c:
+                    continue
+                
+                # Configuração de cadência aveludada e humana
+                if current_mod == "rush":
+                    speed = 0.96      # Ágil e enérgico, mas articulado e sem atropelar
+                    vol = 1.15
+                    pause_s = 0.28
+                elif current_mod == "tedio":
+                    speed = 0.82      # Tédio sofisticado, arrastado e irônico
+                    vol = 0.85
+                    pause_s = 0.65
+                elif current_mod == "analitica":
+                    speed = 0.86      # Preciso, pausado e cirúrgico
+                    vol = 1.00
+                    pause_s = 0.45
+                elif current_mod == "direta":
+                    speed = 0.88      # Confiante, aveludado e direto
+                    vol = 1.05
+                    pause_s = 0.55
+                elif current_mod == "sussurro":
+                    speed = 0.80
+                    vol = 0.75
+                    pause_s = 0.50
+                elif current_mod == "energia":
+                    speed = 0.98
+                    vol = 1.20
+                    pause_s = 0.30
+                else:
+                    # Modo normal: cadência baseada na pontuação
+                    if '!' in p:
+                        speed = 0.94
+                        vol = 1.12
+                        pause_s = 0.35
+                    elif '?' in p:
+                        speed = 0.88
+                        vol = 1.02
+                        pause_s = 0.45
+                    elif '..' in p or '…' in p:
+                        speed = 0.82    # Reticências: pausa dramática e reflexão lenta
+                        vol = 0.85
+                        pause_s = 0.70
+                    else:
+                        speed = 0.88    # Cadência relaxada padrão de rádio noturna
+                        vol = 1.00
+                        pause_s = 0.40
 
-        # Checa pausas customizadas
-        custom_pause = None
-        pause_match = re.search(r'<PAUSE:([0-9.]+)>', clause)
-        if pause_match:
-            custom_pause = float(pause_match.group(1))
-            clause = re.sub(r'<PAUSE:[0-9.]+>', '', clause).strip()
+                beats.append({
+                    "type": "speech",
+                    "text": c + p,
+                    "speed": speed,
+                    "vol": vol,
+                    "pause": pause_s
+                })
+                # Reseta o modificador após uma oração completa
+                current_mod = "normal"
 
-        if not clause:
-            if custom_pause is not None:
-                beats.append({"type": "pause", "duration": custom_pause})
-            continue
-
-        # Regras de prosódia humana baseadas no contexto e pontuação
-        if current_modifier == "whisper":
-            speed = 0.90
-            vol = 0.75
-            pause_s = 0.40
-            current_modifier = "normal"
-        elif current_modifier == "energy":
-            speed = 1.10
-            vol = 1.25
-            pause_s = 0.22
-            current_modifier = "normal"
-        elif current_modifier == "rush":
-            # Movimento forte / Adrenalina: fala rápido, frases curtas e cortadas
-            speed = 1.15
-            vol = 1.20
-            pause_s = 0.16
-            current_modifier = "normal"
-        elif current_modifier == "chill":
-            # Tédio sofisticado / Ironia: cadência aveludada, arrastada e sarcástica
-            speed = 0.88
-            vol = 0.82
-            pause_s = 0.55
-            current_modifier = "normal"
-        elif current_modifier == "analytic":
-            # Armadilha detectada / Analítica: fala devagar, calculada, precisa
-            speed = 0.94
-            vol = 1.05
-            pause_s = 0.35
-            current_modifier = "normal"
-        elif current_modifier == "direct":
-            # Usuário ansioso: pausa longa antes e frase direta sem suavizar
-            speed = 0.98
-            vol = 1.02
-            pause_s = 0.60
-            current_modifier = "normal"
-        elif '!' in punct:
-            # Exclamação: Enérgica, ágil e projetada
-            speed = 1.07
-            vol = 1.18
-            pause_s = 0.22
-        elif '?' in punct:
-            # Pergunta: Modulação atenta e pausa de resposta
-            speed = 1.00
-            vol = 1.05
-            pause_s = 0.32
-        elif '..' in punct or '…' in punct:
-            # Reticências: Hesitação dramática, sarcasmo ou pensamento reflexivo
-            speed = 0.93
-            vol = 0.88
-            pause_s = 0.48
-        else:
-            # Ponto final: Tom narrativo padrão
-            speed = 1.02
-            vol = 1.00
-            pause_s = 0.28
-
-        if custom_pause is not None:
-            pause_s = custom_pause
-
-        beats.append({
-            "type": "speech",
-            "text": clause + punct,
-            "speed": speed,
-            "vol": vol,
-            "pause": pause_s
-        })
+            if len(clauses) % 2 == 1 and clauses[-1].strip():
+                c = clauses[-1].strip()
+                beats.append({
+                    "type": "speech",
+                    "text": c + ".",
+                    "speed": 0.88,
+                    "vol": 1.00,
+                    "pause": 0.45
+                })
 
     return beats
 
 def synthesize_acting(kokoro_engine, text: str, voice, lang: str = "pt-br") -> tuple[np.ndarray, int]:
     """
-    Sintetiza o texto aplicando o motor de atuação humana.
+    Sintetiza cada beat com sua dinâmica e costura com pausas suaves.
     """
     beats = parse_acting_beats(text)
     audio_segments = []
 
-    for idx, beat in enumerate(beats):
+    for beat in beats:
         if beat["type"] == "pause":
             pause_samples = int(SAMPLE_RATE * beat["duration"])
             audio_segments.append(np.zeros(pause_samples, dtype=np.float32))
@@ -164,11 +166,18 @@ def synthesize_acting(kokoro_engine, text: str, voice, lang: str = "pt-br") -> t
         else:
             clean_text = raw_text
 
-        # Sintetiza com a velocidade dinâmica do beat
+        # Sintetiza com a velocidade deliberada e aveludada do beat
         samples, _ = kokoro_engine.create(clean_text, voice=voice, speed=beat["speed"], lang=lang)
         
-        # Aplica dinâmica de ganho de volume (acting volume curve)
+        # Aplica a dinâmica de ganho
         samples = samples * beat["vol"]
+        
+        # Micro fade-in e fade-out (5ms) para eliminar cliques
+        fade_len = min(120, len(samples))
+        fade_curve = np.linspace(0, 1, fade_len, dtype=np.float32)
+        samples[:fade_len] *= fade_curve
+        samples[-fade_len:] *= fade_curve[::-1]
+
         audio_segments.append(samples)
 
         # Insere a pausa humana correspondente

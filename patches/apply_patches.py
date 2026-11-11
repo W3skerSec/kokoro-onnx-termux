@@ -20,7 +20,7 @@ def patch_file(path, old, new):
     print(f"Successfully patched: {path}")
     return True
 
-# Locate active site-packages containing phonemizer
+# Locate active site-packages containing phonemizer and kokoro_onnx
 candidates = [p for p in sys.path if "site-packages" in p]
 site_pkg = None
 for c in candidates:
@@ -29,43 +29,20 @@ for c in candidates:
         break
 
 if not site_pkg:
-    print("Error: phonemizer not found in any site-packages path!")
+    print("Error: phonemizer not found in site-packages!")
     sys.exit(1)
 
-print(f"Found target site-packages: {site_pkg}")
-api_file = os.path.join(site_pkg, "phonemizer/backend/espeak/api.py")
+print(f"Target site-packages: {site_pkg}")
 
+# 1. Patch phonemizer api.py for dlinfo bypass
+api_file = os.path.join(site_pkg, "phonemizer/backend/espeak/api.py")
 patch_file(
     api_file,
     "if sys.platform != 'win32':\n    # cause a crash on Windows\n    import dlinfo",
     "if sys.platform != 'win32':\n    # cause a crash on Windows\n    try:\n        import dlinfo\n    except (ImportError, AttributeError, OSError):\n        dlinfo = None"
 )
 
-old_dlinfo_lookup = """        try:
-            # Linux or MacOS only, ImportError on Windows
-            return pathlib.Path(dlinfo.DLInfo(library).path).resolve()
-        except (Exception, ImportError):  # pragma: nocover
-            raise RuntimeError(
-                f'failed to retrieve the path to {library} library') from None"""
-
-new_dlinfo_lookup = """        try:
-            if dlinfo is not None:
-                return pathlib.Path(dlinfo.DLInfo(library).path).resolve()
-            raise RuntimeError('dlinfo not available on Android/Bionic')
-        except (Exception, ImportError):
-            import subprocess
-            try:
-                res = subprocess.run(['find', '/data/data/com.termux/files/usr/lib', '-name', 'libespeak-ng.so*', '-type', 'f'], capture_output=True, text=True)
-                for line in res.stdout.strip().split('\\n'):
-                    p = pathlib.Path(line.strip())
-                    if p.is_file():
-                        return p
-            except Exception:
-                pass
-            raise RuntimeError(f'failed to retrieve the path to {library} library') from None"""
-
-patch_file(api_file, old_dlinfo_lookup, new_dlinfo_lookup)
-
+# 2. Patch phonemizer backends/__init__.py
 backends_file = os.path.join(site_pkg, "phonemizer/backend/__init__.py")
 old_backends = """from .espeak.espeak import EspeakBackend
 from .espeak.mbrola import EspeakMbrolaBackend
@@ -98,14 +75,42 @@ except ImportError:
 
 BACKENDS = {b.name(): b for b in (
     EspeakBackend, FestivalBackend, SegmentsBackend, EspeakMbrolaBackend) if b is not None}"""
-
 patch_file(backends_file, old_backends, new_backends)
 
+# 3. Patch kokoro_onnx/__init__.py (NumPy 2.x allow_pickle and INT8 float speed input)
 kokoro_init = os.path.join(site_pkg, "kokoro_onnx/__init__.py")
 patch_file(
     kokoro_init,
     "self.voices: np.ndarray = np.load(voices_path)",
     "self.voices: np.ndarray = np.load(voices_path, allow_pickle=True)"
 )
+patch_file(
+    kokoro_init,
+    '"speed": np.array([speed], dtype=np.int32),',
+    '"speed": np.array([speed], dtype=np.float32),'
+)
 
-print("[OK] All patches verified!")
+# 4. Patch kokoro_onnx/tokenizer.py (Direct Termux espeak-ng paths, zero bad ELF magic error)
+tok_file = os.path.join(site_pkg, "kokoro_onnx/tokenizer.py")
+old_tok = """        if not espeak_config:
+            espeak_config = EspeakConfig()
+        if not espeak_config.data_path:
+            espeak_config.data_path = espeakng_loader.get_data_path()
+        if not espeak_config.lib_path:
+            espeak_config.lib_path = espeakng_loader.get_library_path()"""
+
+new_tok = """        if not espeak_config:
+            espeak_config = EspeakConfig()
+
+        termux_lib = "/data/data/com.termux/files/usr/lib/libespeak-ng.so"
+        if os.path.exists(termux_lib) and not os.getenv("PHONEMIZER_ESPEAK_LIBRARY"):
+            espeak_config.lib_path = termux_lib
+            espeak_config.data_path = "/data/data/com.termux/files/usr/share/espeak-ng-data"
+
+        if not espeak_config.data_path:
+            espeak_config.data_path = espeakng_loader.get_data_path()
+        if not espeak_config.lib_path:
+            espeak_config.lib_path = espeakng_loader.get_library_path()"""
+patch_file(tok_file, old_tok, new_tok)
+
+print("[OK] All Termux Bionic and Kokoro patches verified!")

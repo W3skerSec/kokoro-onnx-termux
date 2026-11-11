@@ -1,14 +1,53 @@
-#!/data/data/com.termux/files/usr/bin/env python3
+#!/data/data/com.termux/files/usr/bin/python3
 import os
 import sys
+import warnings
+import logging
+
+# 1. Silenciar UserWarning do onnxruntime no Android
+warnings.filterwarnings("ignore", category=UserWarning)
+
+# 2. Configurar bibliotecas nativas do Termux antes de qualquer import
+termux_lib = "/data/data/com.termux/files/usr/lib/libespeak-ng.so"
+termux_data = "/data/data/com.termux/files/usr/share/espeak-ng-data"
+if os.path.exists(termux_lib):
+    os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = termux_lib
+if os.path.exists(termux_data):
+    os.environ["PHONEMIZER_ESPEAK_DATA_DIRECTORY"] = termux_data
+
+# 3. Silenciar logs internos verbosos
+logging.getLogger("kokoro_onnx").setLevel(logging.ERROR)
+
 import argparse
 import time
 import soundfile as sf
 import subprocess
 
 MODEL_DIR = os.path.expanduser("~/.kokoro")
-DEFAULT_MODEL = os.path.join(MODEL_DIR, "kokoro-v1.0.onnx")
+DEFAULT_INT8 = os.path.join(MODEL_DIR, "kokoro-v1.0.int8.onnx")
+DEFAULT_FP32 = os.path.join(MODEL_DIR, "kokoro-v1.0.onnx")
 DEFAULT_VOICES = os.path.join(MODEL_DIR, "voices-v1.0.bin")
+
+def get_best_model():
+    if os.path.exists(DEFAULT_INT8):
+        return DEFAULT_INT8
+    if os.path.exists(DEFAULT_FP32):
+        return DEFAULT_FP32
+    alt_int8 = "/data/data/com.termux/files/home/modelos_tts/kokoro/kokoro-v1.0.int8.onnx"
+    if os.path.exists(alt_int8):
+        return alt_int8
+    alt_fp32 = "/data/data/com.termux/files/home/modelos_tts/kokoro/model.onnx"
+    if os.path.exists(alt_fp32):
+        return alt_fp32
+    return DEFAULT_INT8
+
+def get_best_voices():
+    if os.path.exists(DEFAULT_VOICES):
+        return DEFAULT_VOICES
+    alt_voices = "/data/data/com.termux/files/home/modelos_tts/kokoro/voices-v1.0.bin"
+    if os.path.exists(alt_voices):
+        return alt_voices
+    return DEFAULT_VOICES
 
 def main():
     parser = argparse.ArgumentParser(description="Kokoro-82M TTS Local para Termux (Android)")
@@ -23,17 +62,8 @@ def main():
     
     args = parser.parse_args()
 
-    # Fallback to local files if ~/.kokoro not populated yet
-    model_path = DEFAULT_MODEL
-    voices_path = DEFAULT_VOICES
-    if not os.path.exists(model_path):
-        alt_model = "/data/data/com.termux/files/home/modelos_tts/kokoro/model.onnx"
-        if os.path.exists(alt_model):
-            model_path = alt_model
-    if not os.path.exists(voices_path):
-        alt_voices = "/data/data/com.termux/files/home/modelos_tts/kokoro/voices-v1.0.bin"
-        if os.path.exists(alt_voices):
-            voices_path = alt_voices
+    model_path = get_best_model()
+    voices_path = get_best_voices()
 
     import kokoro_onnx
     kokoro = kokoro_onnx.Kokoro(model_path=model_path, voices_path=voices_path)

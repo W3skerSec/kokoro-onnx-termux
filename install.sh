@@ -25,10 +25,10 @@ python3 "$SCRIPT_DIR/patches/apply_patches.py"
 MODEL_DIR="$HOME/.kokoro"
 mkdir -p "$MODEL_DIR"
 
-if [ ! -f "$MODEL_DIR/kokoro-v1.0.onnx" ]; then
-    echo "[4/5] Baixando modelo neural Kokoro-v1.0 (ONNX)..."
-    curl -L -o "$MODEL_DIR/kokoro-v1.0.onnx" \
-        https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.onnx
+if [ ! -f "$MODEL_DIR/kokoro-v1.0.int8.onnx" ]; then
+    echo "[4/5] Baixando modelo neural quantizado Kokoro-v1.0 (INT8 108MB - Ultra Rápido)..."
+    curl -L -o "$MODEL_DIR/kokoro-v1.0.int8.onnx" \
+        https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx
 fi
 
 if [ ! -f "$MODEL_DIR/voices-v1.0.bin" ]; then

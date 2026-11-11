@@ -128,4 +128,55 @@ patch_file(
     'elif __my_system__ in ["linux", "android"]:'
 )
 
+# 6. Patch kokoro_onnx/tokenizer.py (pt-BR Smart Text Normalizer: Dj -> didjei, FM, MC, GTA, moedas, etc)
+old_norm = """    @staticmethod
+    def normalize_text(text) -> str:
+        return text.strip()"""
+
+new_norm = """    @staticmethod
+    def normalize_text(text, lang="en-us") -> str:
+        text = text.strip()
+        if lang.lower().startswith("pt"):
+            import re
+            text = re.sub(r'R[\\$]\s*(\d+)', r'\\1 reais', text)
+            text = re.sub(r'%', ' por cento', text)
+            pt_rules = [
+                (r'\\b[Dd][Jj]\\b', 'didjei'),
+                (r'\\b[Mm][Cc]\\b', 'emici'),
+                (r'\\b[Ff][Mm]\\b', 'éfie-emi'),
+                (r'\\bGTA\\s*V\\b', 'gêtêá cinco'),
+                (r'\\bGTA\\s*IV\\b', 'gêtêá quatro'),
+                (r'\\bGTA\\s*VI\\b', 'gêtêá seis'),
+                (r'\\bGTA\\b', 'gêtêá'),
+                (r'\\b[Ww][Ii]-?[Ff][Ii]\\b', 'uai-fai'),
+                (r'\\b[Bb]luetooth\\b', 'blutúfi'),
+                (r'\\b[Yy]ou[Tt]ube\\b', 'iutúbi'),
+                (r'\\b[Ww]hats[Aa]pp\\b', 'uatizápi'),
+                (r'\\b[Pp]laylist\\b', 'pleilísti'),
+                (r'\\b[Pp]odcast\\b', 'podiquésti'),
+                (r'\\b[Ff]eat\\.?\\b', 'fíti'),
+                (r'\\b[Ff]t\\.?\\b', 'fíti'),
+                (r'\\b[Vv]s\\.?\\b', 'vérsus'),
+                (r'\\b[Rr]emix\\b', 'remícs'),
+                (r'\\b[Ss]how\\b', 'chou'),
+                (r'\\b[Ff]eedback\\b', 'fidibéqui'),
+                (r'\\b[Ll]ive\\b', 'laivi'),
+                (r'\\bDr\\.\\b', 'doutor'),
+                (r'\\bDra\\.\\b', 'doutora'),
+                (r'\\bSr\\.\\b', 'senhor'),
+                (r'\\bSra\\.\\b', 'senhora'),
+                (r'\\betc\\.\\b', 'etcétera'),
+            ]
+            for pattern, repl in pt_rules:
+                text = re.sub(pattern, repl, text, flags=re.IGNORECASE if not pattern.startswith(r'\\b[A-Z]') else 0)
+            text = re.sub(r'\\s+([,.:;?!])', r'\\1', text)
+        return text.strip()"""
+patch_file(tok_file, old_norm, new_norm)
+
+patch_file(
+    tok_file,
+    "text = Tokenizer.normalize_text(text)",
+    "text = Tokenizer.normalize_text(text, lang=lang)"
+)
+
 print("[OK] All Termux Bionic and Kokoro patches verified!")

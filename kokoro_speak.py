@@ -24,30 +24,31 @@ import soundfile as sf
 import subprocess
 
 MODEL_DIR = os.path.expanduser("~/.kokoro")
-DEFAULT_INT8 = os.path.join(MODEL_DIR, "kokoro-v1.0.int8.onnx")
 DEFAULT_FP32 = os.path.join(MODEL_DIR, "kokoro-v1.0.onnx")
+DEFAULT_INT8 = os.path.join(MODEL_DIR, "kokoro-v1.0.int8.onnx")
 DEFAULT_VOICES = os.path.join(MODEL_DIR, "voices-v1.0.bin")
 
 def get_best_model():
-    if os.path.exists(DEFAULT_INT8):
-        return DEFAULT_INT8
-    if os.path.exists(DEFAULT_FP32):
-        return DEFAULT_FP32
-    alt_int8 = "/data/data/com.termux/files/home/modelos_tts/kokoro/kokoro-v1.0.int8.onnx"
-    if os.path.exists(alt_int8):
-        return alt_int8
+    # Prefer FP32 for pure, crystal-clear studio audio without INT8 quantization noise
     alt_fp32 = "/data/data/com.termux/files/home/modelos_tts/kokoro/model.onnx"
     if os.path.exists(alt_fp32):
         return alt_fp32
-    return DEFAULT_INT8
+    if os.path.exists(DEFAULT_FP32):
+        return DEFAULT_FP32
+    if os.path.exists(DEFAULT_INT8):
+        return DEFAULT_INT8
+    alt_int8 = "/data/data/com.termux/files/home/modelos_tts/kokoro/kokoro-v1.0.int8.onnx"
+    if os.path.exists(alt_int8):
+        return alt_int8
+    return alt_fp32
 
 def get_best_voices():
-    if os.path.exists(DEFAULT_VOICES):
-        return DEFAULT_VOICES
     alt_voices = "/data/data/com.termux/files/home/modelos_tts/kokoro/voices-v1.0.bin"
     if os.path.exists(alt_voices):
         return alt_voices
-    return DEFAULT_VOICES
+    if os.path.exists(DEFAULT_VOICES):
+        return DEFAULT_VOICES
+    return alt_voices
 
 def main():
     parser = argparse.ArgumentParser(description="Kokoro-82M TTS Local para Termux (Android)")

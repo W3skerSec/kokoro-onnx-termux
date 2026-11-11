@@ -73,6 +73,8 @@ def main():
     parser.add_argument("--no-play", dest="play", action="store_false", help="Não tocar áudio")
     parser.add_argument("-m", "--master", action="store_true", help="Aplicar pós-processamento de estúdio (ElevenLabs Quality)")
     parser.add_argument("-p", "--preset", default="studio", choices=["studio", "radio", "anime", "clean"], help="Preset de masterização")
+    parser.add_argument("--act", dest="act", action="store_true", default=None, help="Ativar atuação humana expressiva (volume e pausas dinâmicas)")
+    parser.add_argument("--no-act", dest="act", action="store_false", help="Desativar atuação expressiva")
     parser.add_argument("--list-voices", action="store_true", help="Listar vozes disponíveis")
     
     args = parser.parse_args()
@@ -120,9 +122,29 @@ def main():
         except Exception:
             pass
 
-    print(f"🤖 [Kokoro TTS] Sintetizando com a voz '{voice_name}' ({args.lang})...")
+    # Determina se deve usar atuação expressiva humana
+    should_act = args.act
+    if should_act is None:
+        # Ativa automaticamente para dj_cara ou se o texto contiver pontuações expressivas
+        if "dj_cara" in str(voice_name) or any(c in text for c in ["!", "?", "..."]):
+            should_act = True
+        else:
+            should_act = False
+
+    mode_str = " (Atuação Expressiva Humana)" if should_act else ""
+    print(f"🤖 [Kokoro TTS] Sintetizando com a voz '{voice_name}' ({args.lang}){mode_str}...")
     t0 = time.time()
-    samples, sr = kokoro.create(text, voice=resolved_voice, speed=args.speed, lang=args.lang)
+
+    if should_act:
+        try:
+            import kokoro_actor
+            samples, sr = kokoro_actor.synthesize_acting(kokoro, text, voice=resolved_voice, lang=args.lang)
+        except Exception as e:
+            # Fallback caso ocorra qualquer imprevisto
+            samples, sr = kokoro.create(text, voice=resolved_voice, speed=args.speed, lang=args.lang)
+    else:
+        samples, sr = kokoro.create(text, voice=resolved_voice, speed=args.speed, lang=args.lang)
+
     dt = time.time() - t0
     dur = len(samples) / sr
     speedup = dur / dt if dt > 0 else 0

@@ -65,6 +65,29 @@ Criamos vetores acústicos personalizados utilizando a técnica de **desacoplame
 
 ---
 
+## 🎭 Atuação Expressiva Humana (Dynamic Volume, Pausas e Ritmo)
+
+Sistemas de TTS comuns soam robóticos porque mantêm volume fixo e pausas mecânicas constantes (~150ms). O módulo [`kokoro_actor.py`](file:///data/data/com.termux/files/home/kokoro-onnx-termux/kokoro_actor.py) introduz um **motor de atuação expressiva** que simula a fala de um ser humano real:
+
+- **Variações Dinâmicas de Volume (Gain Curve)**: Frases afirmativas/exclamações recebem projeção vocal mais alta (+18%), enquanto reticências e comentários sarcásticos reduzem o volume (-12%), criando o efeito intimista de estúdio.
+- **Modulação de Velocidade por Intenção**: Frases empolgadas aceleram sutilmente (1.07x), enquanto reflexões e ironias desaceleram (0.93x).
+- **Pausas Respiratórias Naturais**:
+  - `!` ➔ Pausa curta de fôlego enérgico (220ms).
+  - `?` ➔ Pausa inquisitiva (320ms).
+  - `...` ➔ Hesitação dramática / reflexiva humana (480ms).
+  - `,` ➔ Separação natural de oração (180ms).
+- **Tags de Controle Humano**:
+  - `[sussurro]` ou `[whisper]` ➔ Volume mais baixo e cadência lenta.
+  - `[energia]` ou `[energy]` ➔ Volume projetado e ritmo rápido.
+  - `[pausa=0.5]` ➔ Pausa personalizada em segundos.
+
+### Exemplo de Atuação:
+```bash
+kokoro-speak "Aqui é a Cara na Non Stop Pop FM! Vocês estão prontos para dançar? ... Eu espero que sim, porque em Los Santos... ninguém tem desculpa para ficar parado!" -v dj_cara -m -p radio
+```
+
+---
+
 ## 🧬 Criando Suas Próprias Vozes (`kokoro-blend`)
 
 Você pode misturar qualquer combinação das 54 vozes nativas do Kokoro para criar novas identidades:

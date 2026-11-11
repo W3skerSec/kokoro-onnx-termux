@@ -42,6 +42,7 @@ echo "[5/5] Instalando comandos globais, dicionário fonético e módulos..."
 SITE_PKG=$(python3 -c "import sys; print([p for p in sys.path if 'site-packages' in p][0])")
 cp "$SCRIPT_DIR/kokoro_master.py" "$SITE_PKG/kokoro_master.py"
 cp "$SCRIPT_DIR/kokoro_phonetics.py" "$SITE_PKG/kokoro_phonetics.py"
+cp "$SCRIPT_DIR/kokoro_actor.py" "$SITE_PKG/kokoro_actor.py"
 cp "$SCRIPT_DIR/data/phonetic_dict.json" "$MODEL_DIR/phonetic_dict.json"
 cp "$SCRIPT_DIR/kokoro_speak.py" "$PREFIX/bin/kokoro-speak"
 cp "$SCRIPT_DIR/kokoro_blend.py" "$PREFIX/bin/kokoro-blend"

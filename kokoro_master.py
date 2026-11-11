@@ -14,7 +14,7 @@ import time
 
 PRESETS = {
     "studio": (
-        "aresample=48000:resampler=soxr,"
+        "aresample=48000,"
         "highpass=f=70,"
         "equalizer=f=200:t=o:w=1.2:g=2.5,"
         "equalizer=f=3400:t=o:w=1.5:g=2.0,"
@@ -25,19 +25,19 @@ PRESETS = {
         "loudnorm=I=-16:TP=-1.5:LRA=9"
     ),
     "radio": (
-        "aresample=48000:resampler=soxr,"
-        "highpass=f=80,"
-        "equalizer=f=220:t=o:w=1.2:g=2.0,"
-        "equalizer=f=3800:t=o:w=1.4:g=3.0,"
+        "aresample=48000,"
+        "highpass=f=75,"
+        "equalizer=f=220:t=o:w=1.2:g=2.2,"
+        "equalizer=f=3800:t=o:w=1.4:g=2.8,"
         "equalizer=f=10000:t=o:w=1.5:g=2.0,"
-        "aexciter=level_in=1:level_out=1:amount=1.5:drive=2.2:freq=6500:ceil=18000,"
-        "crystalizer=i=1.4,"
-        "compand=attacks=0.01:decays=0.06:points=-80/-80|-45/-36|-24/-15|-12/-8|-4/-2|0/0:soft-knee=6:gain=2.5,"
-        "loudnorm=I=-14:TP=-1.0:LRA=7"
+        "aexciter=level_in=1:level_out=1:amount=1.5:drive=2.0:freq=6500:ceil=18000,"
+        "crystalizer=i=1.3,"
+        "compand=attacks=0.01:decays=0.06:points=-80/-80|-45/-36|-24/-15|-12/-8|-4/-2|0/0:soft-knee=6:gain=2.2,"
+        "loudnorm=I=-14:TP=-1.0:LRA=8"
     ),
     "anime": (
         "rubberband=pitch=1.10:formant=shifted,"
-        "aresample=48000:resampler=soxr,"
+        "aresample=48000,"
         "highpass=f=80,"
         "equalizer=f=240:t=o:w=1.0:g=1.5,"
         "equalizer=f=4000:t=o:w=1.5:g=2.5,"
@@ -48,7 +48,7 @@ PRESETS = {
         "loudnorm=I=-16:TP=-1.5:LRA=8"
     ),
     "clean": (
-        "aresample=48000:resampler=soxr,"
+        "aresample=48000,"
         "highpass=f=60,"
         "loudnorm=I=-16:TP=-1.5:LRA=10"
     )

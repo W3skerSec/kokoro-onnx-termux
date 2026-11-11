@@ -103,14 +103,29 @@ new_tok = """        if not espeak_config:
             espeak_config = EspeakConfig()
 
         termux_lib = "/data/data/com.termux/files/usr/lib/libespeak-ng.so"
-        if os.path.exists(termux_lib) and not os.getenv("PHONEMIZER_ESPEAK_LIBRARY"):
+        termux_data = "/data/data/com.termux/files/usr/share/espeak-ng-data"
+        if os.getenv("PHONEMIZER_ESPEAK_LIBRARY"):
+            espeak_config.lib_path = os.getenv("PHONEMIZER_ESPEAK_LIBRARY")
+        elif os.path.exists(termux_lib):
             espeak_config.lib_path = termux_lib
-            espeak_config.data_path = "/data/data/com.termux/files/usr/share/espeak-ng-data"
+
+        if os.getenv("PHONEMIZER_ESPEAK_DATA_DIRECTORY"):
+            espeak_config.data_path = os.getenv("PHONEMIZER_ESPEAK_DATA_DIRECTORY")
+        elif os.path.exists(termux_data):
+            espeak_config.data_path = termux_data
 
         if not espeak_config.data_path:
             espeak_config.data_path = espeakng_loader.get_data_path()
         if not espeak_config.lib_path:
             espeak_config.lib_path = espeakng_loader.get_library_path()"""
 patch_file(tok_file, old_tok, new_tok)
+
+# 5. Patch onnxruntime_validation.py (Suppress Android unsupported platform warning)
+ort_valid = os.path.join(site_pkg, "onnxruntime/capi/onnxruntime_validation.py")
+patch_file(
+    ort_valid,
+    'elif __my_system__ == "linux":',
+    'elif __my_system__ in ["linux", "android"]:'
+)
 
 print("[OK] All Termux Bionic and Kokoro patches verified!")

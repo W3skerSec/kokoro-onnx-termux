@@ -38,10 +38,13 @@ if [ ! -f "$MODEL_DIR/voices-v1.0.bin" ]; then
 fi
 
 # 5. Criar atalhos globais
-echo "[5/5] Instalando comandos globais 'kokoro-speak' e 'kokoro-blend'..."
+echo "[5/5] Instalando comandos globais e módulos..."
+SITE_PKG=$(python3 -c "import sys; print([p for p in sys.path if 'site-packages' in p][0])")
+cp "$SCRIPT_DIR/kokoro_master.py" "$SITE_PKG/kokoro_master.py"
 cp "$SCRIPT_DIR/kokoro_speak.py" "$PREFIX/bin/kokoro-speak"
 cp "$SCRIPT_DIR/kokoro_blend.py" "$PREFIX/bin/kokoro-blend"
-chmod +x "$PREFIX/bin/kokoro-speak" "$PREFIX/bin/kokoro-blend"
+cp "$SCRIPT_DIR/kokoro_master.py" "$PREFIX/bin/kokoro-master"
+chmod +x "$PREFIX/bin/kokoro-speak" "$PREFIX/bin/kokoro-blend" "$PREFIX/bin/kokoro-master"
 
 echo "============================================================"
 echo "🎉 INSTALAÇÃO CONCLUÍDA COM SUCESSO!"

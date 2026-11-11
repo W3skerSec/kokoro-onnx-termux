@@ -1,19 +1,18 @@
 # Kokoro-82M ONNX para Android (Termux) 🇧🇷📱
 
-Port oficial e corrigido do motor de síntese de voz neural **Kokoro-82M (StyleTTS2)** rodando **100% offline e localmente** no Termux (Android ARM64), com suporte completo à voz feminina brasileira **Dora (`pf_dora`)** e vozes masculinas (`pm_alex`, `pm_santa`), respeitando pausas, vírgulas, perguntas e entonação natural sem necessidade de conexões com a nuvem ou APIs pagas.
+Port oficial, corrigido e aprimorado do motor de síntese de voz neural **Kokoro-82M (StyleTTS2)** rodando **100% offline e localmente** no Termux (Android ARM64), com suporte completo à voz feminina brasileira **Dora (`pf_dora`)**, vozes masculinas (`pm_alex`, `pm_santa`), criação e desacoplamento de vozes personalizadas e pipeline de **Masterização de Estúdio (nível ElevenLabs)**.
 
 ---
 
-## ⚡ Por que este Port foi Necessário?
+## ⚡ Por que este Port foi Necessário? (Engenharia Reversa & Patches)
 
 Ao tentar rodar o `kokoro-onnx` padrão no Termux / Android, múltiplos erros críticos de arquitetura impedem a execução:
 
 1. **Incompatibilidade da Bionic libc com `dlinfo`**: O Android não implementa a função `dlinfo` presente na glibc GNU, causando crash imediato no carregador de bibliotecas do `phonemizer`.
-2. **Crash de Binários Incompatíveis (`bad ELF magic`)**: O pacote `espeakng_loader` tenta carregar arquivos `.dylib` de macOS ou `.so` de x86_64, quebrando a execução no ARM64 do Android.
-3. **Dependência Oculta de Compilação Rust (`maturin` / `segments`)**: O backend padrão do phonemizer tenta compilar pacotes em Rust por mais de 20 minutos no celular.
-4. **Restrição de Segurança do NumPy 2.x**: No Python moderno (3.14+), o `np.load` bloqueia arquivos binários com pickle sem o parâmetro explícito `allow_pickle=True`.
-
-**Este repositório fornece todos os patches automáticos e resolve a cadeia de dependências para utilizar o motor nativo `espeak-ng` e o runtime otimizado `onnxruntime` aarch64 do próprio Termux.**
+2. **Crash de Binários Incompatíveis (`bad ELF magic`)**: O pacote `espeakng_loader` tenta carregar arquivos `.dylib` de macOS ou `.so` de x86_64. Nosso patch força o uso direto do binário nativo `libespeak-ng.so` compilado para ARM64 no próprio Termux.
+3. **Avisos de Plataforma do ONNX Runtime**: Patcheado o arquivo `onnxruntime_validation.py` para reconhecer Android nativamente sem poluir o console com warnings.
+4. **Dependência Oculta de Compilação Rust (`maturin` / `segments`)**: O backend padrão do phonemizer tenta compilar pacotes em Rust por mais de 20 minutos no celular. Patcheamos a importação para ser modular e tolerante a falhas.
+5. **Restrição de Segurança do NumPy 2.x**: No Python moderno (3.14+), o `np.load` bloqueia arquivos binários com pickle sem o parâmetro explícito `allow_pickle=True`.
 
 ---
 
@@ -29,79 +28,92 @@ chmod +x install.sh
 ./install.sh
 ```
 
-O script cuidará de:
-- Instalar dependências nativas (`onnxruntime`, `python-onnxruntime`, `espeak`, `ffmpeg`).
-- Aplicar os patches para o Android Bionic e NumPy 2.x.
-- Baixar os pesos neurais do Kokoro-82M e o banco de vozes.
-- Registrar o comando global `kokoro-speak` no seu sistema.
+---
+
+## 🎛️ Pipeline de Masterização de Estúdio (ElevenLabs Quality)
+
+O modelo Kokoro originalmente exporta áudio em 24.000 Hz sem compressão de broadcast. Para elevar o nível ao padrão **ElevenLabs**, incluímos o comando `kokoro-master` e a flag `--master` que processam o áudio através de um pipeline profissional de 7 estágios em 48.000 Hz:
+
+- **Upsampling Sinc (48 kHz / SOXR)**: Restaura a fidelidade acústica.
+- **High-pass 70-80 Hz**: Elimina ruídos de baixa frequência e rumble.
+- **EQ Paramétrico Multibanda**: Corpo vocal quente (200-240 Hz), clareza de presença (3.4-4 kHz) e abertura de ar (9.5-11 kHz).
+- **Exciter Harmônico Psicoacústico (`aexciter`)**: Gera sobretons harmônicos naturais na faixa de 7 kHz a 18 kHz, devolvendo o brilho de microfones condensadores caros.
+- **Dynamic Crystalizer & Compressor**: Suaviza transientes e equilibra sílabas sussurradas e tônicas.
+- **Normalização EBU R128 (`loudnorm`)**: Padrão de broadcast internacional (-16 LUFS, -1.5 TP).
+
+### Como Usar:
+```bash
+# 1. Fala direta com qualidade ElevenLabs Studio
+kokoro-speak "Olá! Agora minha voz possui clareza de estúdio profissional!" --master
+
+# 2. Masterizar usando a ferramenta dedicada kokoro-master
+kokoro-master "Olá! Testando masterização com preset de rádio." -p radio
+```
 
 ---
 
-## 🗣️ Como Usar via Terminal
+## 🎭 Novas Vozes Neurais Criadas
 
-Após a instalação, o comando `kokoro-speak` estará disponível globalmente:
+Criamos vetores acústicos personalizados utilizando a técnica de **desacoplamento de tensores** (dimensões 0..127 para timbre e identidade vocal; dimensões 128..255 para prosódia e ritmo linguístico em português):
 
-### 1. Falar uma frase com voz brasileira:
+| Voz | Descrição | Como Usar |
+|---|---|---|
+| **`dj_cara`** | Voz da DJ Cara (Non-Stop-Pop FM do GTA V) com sotaque britânico pop e português BR fluente | `kokoro-speak "Aqui é a Cara na Non Stop Pop FM!" -v dj_cara -m -p radio` |
+| **`anime_natural`** | Voz feminina de anime doce e fofa (seiyuu), sem sotaque forçado ou caricato | `kokoro-speak "Senpai, você demorou tanto!" -v anime_natural -m -p anime` |
+| **`anime_kawaii`** | Voz delicada estilo anime com prosódia brasileira pura | `kokoro-speak "Muito obrigada por cuidar de mim!" -v anime_kawaii -m` |
+| **`anime_tsundere`** | Voz de anime enérgica e com atitude | `kokoro-speak "Baka! Não pense que fiz isso por você!" -v anime_tsundere -m` |
+
+---
+
+## 🧬 Criando Suas Próprias Vozes (`kokoro-blend`)
+
+Você pode misturar qualquer combinação das 54 vozes nativas do Kokoro para criar novas identidades:
+
 ```bash
-kokoro-speak "Olá! Tudo bem com você? Estou falando 100% offline direto do seu celular!"
+# Ver todos os presets disponíveis
+kokoro-blend --list-presets
+
+# Gerar uma voz customizada misturando timbres
+kokoro-blend --timbre "jf_tebukuro:0.5,af_heart:0.5" --prosody "pf_dora" --name "minha_voz"
 ```
 
-### 2. Escolher outra voz ou velocidade:
+---
+
+## 🗣️ Guia de Comandos do Terminal
+
+### Síntese Simples:
 ```bash
-kokoro-speak "Esta é uma fala com velocidade aumentada." -v pf_dora -s 1.2
+kokoro-speak "Olá! Estou falando 100% offline direto do Termux!"
 ```
 
-### 3. Listar todas as 54 vozes disponíveis:
+### Síntese com Masterização de Estúdio:
+```bash
+kokoro-speak "Áudio com masterização e voz da Dora." -v pf_dora -m
+```
+
+### Voz da DJ do GTA V:
+```bash
+kokoro-speak "Você está curtindo Non-Stop-Pop FM!" -v dj_cara -m -p radio
+```
+
+### Listar Vozes:
 ```bash
 kokoro-speak --list-voices
 ```
 
-### 4. Usar em Pipes / Scripts:
-```bash
-echo "Processamento concluído com sucesso." | kokoro-speak
-```
-
 ---
 
-## 🐍 Como Usar em Scripts Python
+## 🇧🇷 Vozes Nativas do Banco Suportadas
 
-```python
-import kokoro_onnx
-import soundfile as sf
-import subprocess
-
-# Inicializa o modelo
-kokoro = kokoro_onnx.Kokoro(
-    model_path="/data/data/com.termux/files/home/modelos_tts/kokoro/model.onnx",
-    voices_path="/data/data/com.termux/files/home/modelos_tts/kokoro/voices-v1.0.bin"
-)
-
-# Sintetiza com a voz feminina brasileira pf_dora
-samples, sr = kokoro.create(
-    "Olá! Esta é uma demonstração de síntese neural local.",
-    voice="pf_dora",
-    speed=1.0,
-    lang="pt-br"
-)
-
-# Salva o arquivo de áudio
-sf.write("/sdcard/Download/fala.wav", samples, sr)
-
-# Reproduz no alto-falante do celular
-subprocess.run(["termux-media-player", "play", "/sdcard/Download/fala.wav"])
-```
-
----
-
-## 🇧🇷 Vozes em Português do Brasil Suportadas
-
-| ID da Voz | Gênero | Qualidade / Timbre |
+| ID da Voz | Gênero | Descrição |
 |---|---|---|
 | **`pf_dora`** | 🚺 Feminino | Jovem, suave, entonação conversacional de estúdio (24.000 Hz) |
 | **`pm_alex`** | 🚹 Masculino | Tom firme e claro |
-| **`pm_santa`** | 🚹 Masculino | Tom mais encorpado e grave |
+| **`pm_santa`** | 🚹 Masculino | Tom encorpado e grave |
+| **`bf_emma`**, **`bf_alice`** | 🚺 Britânico | Vozes britânicas ideais para blends de rádio |
+| **`jf_tebukuro`**, **`jf_gongitsune`** | 🚺 Japonês | Vozes seiyuu ideais para blends de anime |
 
 ---
 
 ## 🛡️ Licença
-Distribuído sob a licença Apache 2.0. Baseado no modelo open-weights Kokoro-82M de hexgrad e kokoro-onnx de thewh1teagle.
+Distribuído sob a licença Apache 2.0. Baseado no modelo Kokoro-82M de hexgrad e kokoro-onnx de thewh1teagle.

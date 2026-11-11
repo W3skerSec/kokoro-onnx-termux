@@ -71,6 +71,8 @@ def main():
     parser.add_argument("-o", "--output", default="/sdcard/Download/fala_kokoro.wav", help="Arquivo de saída WAV")
     parser.add_argument("--play", action="store_true", default=True, help="Tocar áudio automaticamente no alto-falante")
     parser.add_argument("--no-play", dest="play", action="store_false", help="Não tocar áudio")
+    parser.add_argument("-m", "--master", action="store_true", help="Aplicar pós-processamento de estúdio (ElevenLabs Quality)")
+    parser.add_argument("-p", "--preset", default="studio", choices=["studio", "radio", "anime", "clean"], help="Preset de masterização")
     parser.add_argument("--list-voices", action="store_true", help="Listar vozes disponíveis")
     
     args = parser.parse_args()
@@ -118,8 +120,28 @@ def main():
     speedup = dur / dt if dt > 0 else 0
     print(f" -> Áudio de {dur:.2f}s gerado em {dt:.2f}s ({speedup:.1f}x tempo real) a {sr}Hz!")
 
-    sf.write(args.output, samples, sr)
-    print(f" -> Salvo em: {args.output}")
+    if args.master:
+        import tempfile
+        from kokoro_master import master_audio
+        preset = args.preset
+        if "dj_cara" in str(voice_name) and preset == "studio":
+            preset = "radio"
+        elif "anime" in str(voice_name) and preset == "studio":
+            preset = "anime"
+        
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            tmp_raw = tmp.name
+        try:
+            sf.write(tmp_raw, samples, sr)
+            print(f"🎛️  [Mastering Studio] Aplicando masterização ElevenLabs ({preset})...")
+            master_audio(tmp_raw, args.output, preset=preset)
+            print(f"✨ Salvo em estúdio: {args.output}")
+        finally:
+            if os.path.exists(tmp_raw):
+                os.remove(tmp_raw)
+    else:
+        sf.write(args.output, samples, sr)
+        print(f" -> Salvo em: {args.output}")
 
     if args.play:
         print("🔊 Tocando no alto-falante...")
